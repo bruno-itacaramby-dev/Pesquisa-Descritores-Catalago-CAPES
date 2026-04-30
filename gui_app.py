@@ -420,11 +420,6 @@ class App(ctk.CTk):
         self.title("Pesquisa Descritores - Catalogo CAPES")
         self.geometry("1280x860")
         self.minsize(1100, 760)
-        # Abre maximizado (Windows). Em outros sistemas, ignora silenciosamente.
-        try:
-            self.state("zoomed")
-        except Exception:
-            pass
 
         self.queue = queue.Queue()
         self.stop_event = threading.Event()
@@ -447,7 +442,20 @@ class App(ctk.CTk):
         self.after(50, self._update_all_wraplengths)
         self.after(300, self._update_all_wraplengths)
 
+        # Maximiza a janela apos o widget estar mapeado.
+        # Chamar state("zoomed") direto no __init__ as vezes nao funciona
+        # porque a janela ainda nao foi exibida.
+        self.after(10, self._maximize)
+        # Reforco caso o sistema tenha restaurado durante o build
+        self.after(200, self._maximize)
+
         self._tick()
+
+    def _maximize(self):
+        try:
+            self.state("zoomed")
+        except Exception:
+            pass
 
     # ------------------------------------------------------------
     # CONSTRUCAO DA UI
