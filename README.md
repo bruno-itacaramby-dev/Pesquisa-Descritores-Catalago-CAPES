@@ -103,9 +103,11 @@ Quando você abre o programa, a tela está dividida em duas colunas:
 - **Esquerda** — onde você configura a busca (5 seções numeradas + 3 botões de ação)
 - **Direita** — onde aparecem os resultados, o progresso e o log
 
-A imagem abaixo mostra a **coluna esquerda** com 4 das 5 seções visíveis. A 5ª (**Opções**) e os botões ANALISAR / EXECUTAR / PARAR aparecem ao rolar a coluna para baixo (veja o passo 3).
+A imagem abaixo mostra a **coluna esquerda** com 4 das 5 seções visíveis. A 5ª (**Opções**) e os botões ANALISAR / EXECUTAR / PARAR aparecem ao rolar a coluna para baixo (veja o [passo 3](#passo-3-clicar-em-analisar)).
 
 ![Tela inicial - coluna esquerda](docs/screenshots/01_tela_inicial.png)
+
+> Na imagem o termo `gerencialismo` já aparece digitado e os 3 filtros padrão estão preenchidos — é só um exemplo. Quando você abre o programa pela primeira vez, o termo vem em branco e os filtros já vêm pré-configurados como mostrado.
 
 As cinco seções de configuração na coluna esquerda são:
 
@@ -224,11 +226,19 @@ O executável será criado em `dist/PesquisaCAPES.exe` (~33 MB). Esse arquivo ú
 ├── app.py                       # Versão CLI (linha de comando)
 ├── gui_app.py                   # Interface gráfica
 ├── requirements.txt             # Dependências Python
-├── docs/
-│   ├── gerar_screenshots.py     # Script que regenera os prints deste README
-│   ├── capturar_janela.py       # Captura uma janela aberta do app
-│   └── screenshots/             # Imagens usadas no README
-└── README.md
+├── .gitignore
+├── README.md
+└── docs/
+    ├── gerar_screenshots.py     # Regenera todas as imagens deste README
+    ├── capturar_janela.py       # Captura uma janela aberta do app (helper manual)
+    └── screenshots/             # Imagens usadas no README
+        ├── 01_tela_inicial.png
+        ├── 02_termo_e_filtros.png
+        ├── 02b_botao_analisar.png
+        ├── 03_analise.png
+        ├── 04_execucao.png
+        ├── 05_concluido.png
+        └── Sem título.png       # Imagem-fonte (sem anotações) usada para gerar 01
 ```
 
 ---
