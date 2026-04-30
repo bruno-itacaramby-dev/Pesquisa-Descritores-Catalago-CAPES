@@ -100,10 +100,12 @@ O programa abre maximizado em uma janela única.
 
 Quando você abre o programa, a tela está dividida em duas colunas:
 
-- **Esquerda** — onde você configura a busca (5 seções numeradas)
+- **Esquerda** — onde você configura a busca (5 seções numeradas + 3 botões de ação)
 - **Direita** — onde aparecem os resultados, o progresso e o log
 
-![Tela inicial](docs/screenshots/01_tela_inicial.png)
+A imagem abaixo mostra a **coluna esquerda** com 4 das 5 seções visíveis. A 5ª (**Opções**) e os botões ANALISAR / EXECUTAR / PARAR aparecem ao rolar a coluna para baixo (veja o passo 3).
+
+![Tela inicial - coluna esquerda](docs/screenshots/01_tela_inicial.png)
 
 As cinco seções de configuração na coluna esquerda são:
 

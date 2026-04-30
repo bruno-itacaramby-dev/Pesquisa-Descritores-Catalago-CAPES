@@ -232,18 +232,38 @@ def _scroll_left(app, frac):
 
 
 def cena_01_tela_inicial(app):
-    """Tela inicial com numeracao das secoes 1-3 (parte superior)."""
+    """Tela inicial com numeracao das secoes.
+
+    Se existir docs/screenshots/Sem título.png (print manual da coluna esquerda),
+    usa essa imagem como base. Caso contrario, captura do app.
+    """
+    base_manual = os.path.join(OUT_DIR, "Sem título.png")
+    if os.path.exists(base_manual):
+        img = Image.open(base_manual).convert("RGB")
+        # Coordenadas dos 4 cards visiveis na imagem manual (889x950)
+        # Detectados por inspecao das transicoes de cor (~31,41,55 = fundo do card)
+        cards = [
+            (25, 80, 865, 260),   # 1. Termo de busca
+            (25, 280, 865, 595),  # 2. Filtros
+            (25, 615, 865, 775),  # 3. Filtrar por palavras no titulo
+            (25, 790, 865, 945),  # 4. Pasta de saida
+        ]
+        for idx, bbox in enumerate(cards, start=1):
+            draw_box(img, bbox, color=YELLOW, width=3,
+                     label=str(idx), label_pos="left")
+        save(img, "01_tela_inicial.png")
+        return
+
+    # Fallback: captura ao vivo
     _scroll_left(app, 0.0)
     _settle(app)
     img = _grab_window(app)
 
     titles = _find_section_titles(app)
-    # Numera so os que estao visiveis (acima do limite vertical)
     img_h = img.size[1]
     for idx, (txt, lbl) in enumerate(titles, start=1):
         card = lbl.master
         bbox = widget_bbox(app, card, expand=2)
-        # so anota se o topo do card esta visivel
         if bbox[1] < img_h - 80:
             draw_box(img, bbox, color=YELLOW, width=3,
                      label=str(idx), label_pos="left")
