@@ -420,6 +420,11 @@ class App(ctk.CTk):
         self.title("Pesquisa Descritores - Catalogo CAPES")
         self.geometry("1280x860")
         self.minsize(1100, 760)
+        # Abre maximizado (Windows). Em outros sistemas, ignora silenciosamente.
+        try:
+            self.state("zoomed")
+        except Exception:
+            pass
 
         self.queue = queue.Queue()
         self.stop_event = threading.Event()
@@ -484,6 +489,7 @@ class App(ctk.CTk):
         left = ctk.CTkScrollableFrame(self, fg_color="transparent", label_text="")
         left.grid(row=1, column=0, sticky="nsew", padx=(16, 8), pady=12)
         left.grid_columnconfigure(0, weight=1)
+        self.left_scroll = left  # exposto para automacao
 
         self._build_termo(left, 0)
         self._build_filtros(left, 1)
@@ -546,6 +552,15 @@ class App(ctk.CTk):
             self._update_all_wraplengths()
 
     def _update_all_wraplengths(self):
+        # customtkinter multiplica wraplength pelo widget_scaling antes de passar
+        # ao tk widget (HiDPI). Para que o texto caiba no container, precisamos
+        # dividir o wraplength logico desejado pelo scaling atual.
+        try:
+            scaling = ctk.ScalingTracker.get_widget_scaling(self)
+        except Exception:
+            scaling = 1.0
+        if not scaling or scaling <= 0:
+            scaling = 1.0
         for label, container, padding in self._wrap_bindings:
             try:
                 w = container.winfo_width()
@@ -553,7 +568,7 @@ class App(ctk.CTk):
                 continue
             if w <= 1:
                 continue
-            new_wrap = max(180, w - padding)
+            new_wrap = max(180, int((w - padding) / scaling))
             try:
                 current = int(label.cget("wraplength") or 0)
             except Exception:
