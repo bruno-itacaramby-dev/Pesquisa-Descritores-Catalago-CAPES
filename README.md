@@ -160,12 +160,48 @@ Para alterar esses filtros, edite a lista `filtros` dentro da função `coletar_
 
 ---
 
+## Interface gráfica (opcional)
+
+Além do script CLI (`app.py`), o projeto inclui uma interface gráfica (`gui_app.py`) com:
+
+- Filtros dinâmicos (qualquer campo aceito pela API: Grande Área, Área, Programa, Ano, Instituição, Orientador etc.)
+- Botão **ANALISAR** que mostra quantas teses serão coletadas antes de executar
+- Sugestões de filtros baseadas nos resultados (clique em `+` para adicionar)
+- Barra de progresso, ETA e log detalhado de cada etapa
+- Geração de Excel com cabeçalho estilizado e hyperlinks
+
+### Executando a interface gráfica
+
+Com o ambiente virtual ativo:
+
+```bash
+pip install -r requirements.txt
+python gui_app.py
+```
+
+### Gerando um executável único (.exe)
+
+Para distribuir o programa sem exigir Python instalado, gere um `.exe` único com PyInstaller:
+
+```bash
+pip install -r requirements.txt
+pyinstaller --noconfirm --clean --onefile --windowed --name "PesquisaCAPES" --collect-all customtkinter --hidden-import bs4 --hidden-import openpyxl gui_app.py
+```
+
+O executável será criado em `dist/PesquisaCAPES.exe` (~33 MB, sem dependências externas).
+
+> **Observação:** a versão GUI usa apenas `requests` e `BeautifulSoup` para extrair as páginas das teses, sem necessidade de Playwright/Chromium.
+
+---
+
 ## Estrutura do projeto
 
 ```
 .
-├── app.py        # Script principal
-└── README.md     # Este arquivo
+├── app.py            # Script CLI original
+├── gui_app.py        # Interface gráfica
+├── requirements.txt  # Dependências Python
+└── README.md         # Este arquivo
 ```
 
 ---
