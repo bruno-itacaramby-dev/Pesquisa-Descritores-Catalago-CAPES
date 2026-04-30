@@ -130,7 +130,24 @@ def widget_bbox(app, widget, expand=4):
     return (rx - expand, ry - expand, rx + rw + expand, ry + rh + expand)
 
 
-def save(img, name):
+def save(img, name, crop=None):
+    """Salva a imagem em docs/screenshots/<name>.
+
+    crop: pode ser
+       - None (nao corta)
+       - "left": pega a metade esquerda (com 40px de folga ao centro)
+       - "right": pega a metade direita
+       - tupla (l, t, r, b): coordenadas absolutas
+    """
+    if crop:
+        w, h = img.size
+        if crop == "left":
+            img = img.crop((0, 0, w // 2 + 60, h))
+        elif crop == "right":
+            # comeca um pouco antes da metade para nao cortar titulos com padx
+            img = img.crop((max(0, w // 2 - 80), 0, w, h))
+        elif isinstance(crop, tuple):
+            img = img.crop(crop)
     path = os.path.join(OUT_DIR, name)
     img.save(path, "PNG", optimize=True)
     print(f"  + {path}")
@@ -252,7 +269,7 @@ def cena_02_termo_filtros(app):
         y2 = last.winfo_rooty() - app.winfo_rooty() + last.winfo_height() + 8
         draw_box(img, (x1, y1, x2, y2), color=RED, width=4)
 
-    save(img, "02_termo_e_filtros.png")
+    save(img, "02_termo_e_filtros.png", crop="left")
 
 
 def cena_02b_botoes(app):
@@ -271,7 +288,7 @@ def cena_02b_botoes(app):
     draw_caption(img, (cx - 80, arr_start[1] - 30),
                  "Clique para analisar", color=GREEN, font_size=20)
 
-    save(img, "02b_botao_analisar.png")
+    save(img, "02b_botao_analisar.png", crop="left")
 
 
 def cena_03_analise(app):
@@ -308,7 +325,7 @@ def cena_03_analise(app):
                  "Agora clique em EXECUTAR",
                  color=GREEN, font_size=16)
 
-    save(img, "03_analise.png")
+    save(img, "03_analise.png", crop="right")
 
 
 def cena_04_execucao(app):
@@ -359,7 +376,7 @@ def cena_04_execucao(app):
                  "Log detalhado de cada etapa",
                  color=RED, font_size=14)
 
-    save(img, "04_execucao.png")
+    save(img, "04_execucao.png", crop="right")
 
 
 def cena_05_concluido(app):
@@ -384,7 +401,7 @@ def cena_05_concluido(app):
                  "Coleta finalizada com sucesso",
                  color=GREEN, font_size=16)
 
-    save(img, "05_concluido.png")
+    save(img, "05_concluido.png", crop="right")
 
 
 # ============================================================
