@@ -6,93 +6,37 @@ Os resultados são salvos automaticamente em planilhas Excel e arquivos JSON, or
 
 O projeto oferece duas formas de uso:
 
-- **Interface gráfica (recomendado)** — programa visual com filtros dinâmicos, análise prévia, barra de progresso e log detalhado
-- **Linha de comando** — script Python tradicional para execução por terminal (documentado no fim deste README)
+- **Interface gráfica (recomendado)** — basta baixar e executar, sem instalar nada
+- **Linha de comando (avançado)** — script Python para quem prefere rodar pelo terminal
 
 ---
 
 ## Sumário
 
-- [Pré-requisitos](#pré-requisitos)
-- [Instalação](#instalação)
-- [Como usar — passo a passo com a interface gráfica](#como-usar--passo-a-passo-com-a-interface-gráfica)
+- [Como usar — interface gráfica](#como-usar--interface-gráfica)
+  - [Passo 0: baixar o programa](#passo-0-baixar-o-programa)
   - [Passo 1: visão geral da interface](#passo-1-visão-geral-da-interface)
   - [Passo 2: configurar termo e filtros](#passo-2-configurar-termo-e-filtros)
   - [Passo 3: clicar em ANALISAR](#passo-3-clicar-em-analisar)
   - [Passo 4: revisar o resultado e refinar (opcional)](#passo-4-revisar-o-resultado-e-refinar-opcional)
   - [Passo 5: clicar em EXECUTAR](#passo-5-clicar-em-executar)
   - [Passo 6: aguardar e abrir os arquivos gerados](#passo-6-aguardar-e-abrir-os-arquivos-gerados)
-- [Gerando um executável único (.exe)](#gerando-um-executável-único-exe)
-- [Estrutura do projeto](#estrutura-do-projeto)
 - [Versão por linha de comando (CLI)](#versão-por-linha-de-comando-cli)
+- [Estrutura do projeto](#estrutura-do-projeto)
 - [Observações](#observações)
 - [Licença](#licença)
 
 ---
 
-## Pré-requisitos
+## Como usar — interface gráfica
 
-- **Python 3.8 ou superior** instalado na máquina
-  Download: https://www.python.org/downloads/
+### Passo 0: baixar o programa
 
-> Se você só quer usar o programa pronto (sem instalar Python), peça/baixe o arquivo `PesquisaCAPES.exe` — ele roda sem dependências em qualquer Windows 10/11.
+📥 **[Clique aqui para baixar o programa (PesquisaCAPES.exe)](LINK_DO_GOOGLE_DRIVE_AQUI)**
 
----
+> **Não precisa instalar nada.** O arquivo é um executável único (~33 MB) que já contém tudo o que precisa para rodar. Funciona em qualquer **Windows 10 ou 11**.
 
-## Instalação
-
-### 1. Clone o repositório
-
-```bash
-git clone https://github.com/bruno-itacaramby-dev/Pesquisa-Descritores-Catalago-CAPES.git
-cd Pesquisa-Descritores-Catalago-CAPES
-```
-
-Ou baixe o ZIP pelo botão verde **"Code > Download ZIP"** no GitHub e extraia a pasta.
-
-### 2. (Recomendado) Crie um ambiente virtual
-
-Um ambiente virtual isola as dependências deste projeto e evita conflitos com outros programas Python na sua máquina.
-
-**Windows:**
-```bash
-python -m venv venv
-venv\Scripts\activate
-```
-
-**Mac/Linux:**
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
-
-Você saberá que funcionou quando aparecer `(venv)` no início da linha do terminal.
-
-### 3. Instale as dependências
-
-```bash
-pip install -r requirements.txt
-```
-
-Isso instala:
-
-- `requests` — consultas HTTP ao site da CAPES
-- `beautifulsoup4` — extrai palavras-chave e resumos das páginas das teses
-- `openpyxl` — gera as planilhas Excel
-- `customtkinter` — biblioteca visual da interface gráfica
-- `pyinstaller` — necessário apenas se você for gerar o `.exe` único
-
----
-
-## Como usar — passo a passo com a interface gráfica
-
-Para abrir o programa, com o ambiente virtual ativo:
-
-```bash
-python gui_app.py
-```
-
-O programa abre maximizado em uma janela única.
+Depois de baixar, basta dar **dois cliques no arquivo** e o programa abre. Pode ser que o Windows mostre um aviso de "fabricante desconhecido" — é normal para programas que não foram assinados digitalmente. Clique em **"Mais informações"** e depois em **"Executar assim mesmo"**.
 
 ---
 
@@ -131,7 +75,7 @@ Cada filtro é um par **campo + valor**. Por exemplo:
 - `Área Conhecimento = EDUCAÇÃO`
 - `Nome Programa = EDUCAÇÃO`
 
-O programa vem com esses três filtros pré-preenchidos (mesmo padrão da versão CLI). Para limpar, use o botão **"Limpar filtros"**. Para voltar ao preset, use **"Preset Educação"**. Para adicionar mais um filtro, use **"+ Adicionar filtro"**.
+O programa vem com esses três filtros pré-preenchidos. Para limpar, use o botão **"Limpar filtros"**. Para voltar ao preset, use **"Preset Educação"**. Para adicionar mais um filtro, use **"+ Adicionar filtro"**.
 
 ![Termo e filtros](docs/screenshots/02_termo_e_filtros.png)
 
@@ -206,67 +150,67 @@ Cada planilha tem as colunas: **título · autor · grau acadêmico · institui�
 
 ---
 
-## Gerando um executável único (.exe)
-
-Para distribuir o programa sem exigir Python instalado, você pode gerar um `.exe` único com PyInstaller:
-
-```bash
-pip install -r requirements.txt
-pyinstaller --noconfirm --clean --onefile --windowed --name "PesquisaCAPES" --collect-all customtkinter --hidden-import bs4 --hidden-import openpyxl gui_app.py
-```
-
-O executável será criado em `dist/PesquisaCAPES.exe` (~33 MB). Esse arquivo único pode ser distribuído sem qualquer dependência externa — basta copiar e clicar duas vezes em qualquer Windows 10/11.
-
----
-
-## Estrutura do projeto
-
-```
-.
-├── app.py                       # Versão CLI (linha de comando)
-├── gui_app.py                   # Interface gráfica
-├── requirements.txt             # Dependências Python
-├── .gitignore
-├── README.md
-└── docs/
-    ├── gerar_screenshots.py     # Regenera todas as imagens deste README
-    ├── capturar_janela.py       # Captura uma janela aberta do app (helper manual)
-    └── screenshots/             # Imagens usadas no README
-        ├── 01_tela_inicial.png
-        ├── 02_termo_e_filtros.png
-        ├── 02b_botao_analisar.png
-        ├── 03_analise.png
-        ├── 04_execucao.png
-        ├── 05_concluido.png
-        └── Sem título.png       # Imagem-fonte (sem anotações) usada para gerar 01
-```
-
----
-
 ## Versão por linha de comando (CLI)
 
-> Para usuários que preferem terminal e querem rodar a coleta sem interface gráfica.
+> Para usuários que preferem terminal, querem rodar uma lista grande de descritores em sequência, ou querem modificar/contribuir com o código.
 
-A versão CLI é o script original (`app.py`) que roda toda a coleta a partir de uma lista de descritores definida no próprio código. Diferenças em relação à GUI:
+A versão CLI é o script original (`app.py`) que roda toda a coleta a partir de uma lista de descritores definida no próprio código. **Diferenças em relação à GUI:**
 
 - **Sem botão de análise prévia** — começa a coleta imediatamente para todos os termos da lista
 - **Sem filtros editáveis na hora** — os filtros são fixos no código (`coletar_links()`)
 - **Múltiplos termos numa rodada** — ideal para rodar uma lista grande de descritores em sequência
 - **Usa Playwright** — abre Chromium para extrair palavras-chave (a GUI usa BeautifulSoup direto, mais leve)
-- **Log no terminal** — sem barras visuais, usa `tqdm` no terminal
+- **Log no terminal** — sem barras visuais, usa `tqdm`
 
-### 1. Dependências adicionais para a CLI
+### Pré-requisitos
 
-Além do `requirements.txt`, a versão CLI usa `tqdm` e `playwright`:
+- **Python 3.8 ou superior** instalado na máquina
+  Download: https://www.python.org/downloads/
+- **Git** (opcional, mas recomendado) para clonar o repositório
+
+### 1. Clone o repositório
 
 ```bash
-pip install tqdm playwright
+git clone https://github.com/bruno-itacaramby-dev/Pesquisa-Descritores-Catalago-CAPES.git
+cd Pesquisa-Descritores-Catalago-CAPES
+```
+
+Ou baixe o ZIP pelo botão verde **"Code > Download ZIP"** no GitHub e extraia a pasta.
+
+### 2. (Recomendado) Crie um ambiente virtual
+
+Um ambiente virtual isola as dependências deste projeto e evita conflitos com outros programas Python na sua máquina.
+
+**Windows:**
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+**Mac/Linux:**
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+Você saberá que funcionou quando aparecer `(venv)` no início da linha do terminal.
+
+### 3. Instale as dependências
+
+```bash
+pip install requests tqdm openpyxl playwright
 playwright install chromium
 ```
 
-### 2. Configurar os descritores de busca
+> **O que cada dependência faz:**
+> - `requests` — consultas HTTP ao site da CAPES
+> - `tqdm` — barras de progresso no terminal
+> - `openpyxl` — gera as planilhas Excel
+> - `playwright` — abre o Chromium automaticamente para extrair palavras-chave e resumos das teses
 
-Abra o arquivo `app.py` e localize a variável `termos`, próxima ao início:
+### 4. Configure os descritores de busca
+
+Abra o arquivo `app.py` em qualquer editor de texto e localize a variável `termos`, próxima ao início:
 
 ```python
 termos = [
@@ -292,7 +236,7 @@ termos = [
 
 Cada descritor gera uma pasta separada com seus respectivos arquivos.
 
-### 3. (Opcional) Filtrar por palavras no título
+### 5. (Opcional) Filtrar por palavras no título
 
 Se quiser que apenas trabalhos com determinadas palavras no título sejam incluídos, edite a variável `keywords`:
 
@@ -302,7 +246,7 @@ keywords = ["escola", "docente"]
 
 Lista vazia (`keywords = []`) coleta todos os resultados.
 
-### 4. (Opcional) Alterar os filtros aplicados
+### 6. (Opcional) Alterar os filtros aplicados
 
 Por padrão a CLI filtra por:
 
@@ -310,9 +254,24 @@ Por padrão a CLI filtra por:
 - **Área do Conhecimento:** Educação
 - **Nome do Programa:** Educação
 
-Para alterar, edite a lista `filtros` dentro da função `coletar_links` no arquivo `app.py`.
+Para alterar, edite a lista `filtros` dentro da função `coletar_links` no arquivo `app.py`:
 
-### 5. Executar
+```python
+payload = {
+    "termo": termo,
+    "filtros": [
+        {"campo": "Grande Àrea Conhecimento", "valor": "CIÊNCIAS HUMANAS"},
+        {"campo": "Área Conhecimento", "valor": "EDUCAÇÃO"},
+        {"campo": "Nome Programa", "valor": "EDUCAÇÃO"},
+        # adicione/remova/altere aqui
+    ],
+    ...
+}
+```
+
+### 7. Execute o programa
+
+Com o ambiente virtual ativo:
 
 ```bash
 python app.py
@@ -326,6 +285,23 @@ O terminal exibirá o progresso da coleta em tempo real. Ao final, para cada des
 | `<descritor>_com_resumo.xlsx` | Planilha completa com resumo |
 | `<descritor>.json` | Dados sem resumo em formato JSON |
 | `<descritor>_com_resumo.json` | Dados completos em formato JSON |
+
+---
+
+## Estrutura do projeto
+
+```
+.
+├── app.py                       # Versão CLI (linha de comando)
+├── gui_app.py                   # Interface gráfica (gera o .exe)
+├── requirements.txt             # Dependências Python da GUI
+├── .gitignore
+├── README.md
+└── docs/
+    ├── gerar_screenshots.py     # Regenera todas as imagens deste README
+    ├── capturar_janela.py       # Captura uma janela aberta do app (helper manual)
+    └── screenshots/             # Imagens usadas no README
+```
 
 ---
 
