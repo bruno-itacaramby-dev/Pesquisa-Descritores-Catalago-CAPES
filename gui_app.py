@@ -13,6 +13,7 @@ import queue
 import webbrowser
 import traceback
 from datetime import datetime
+from pathlib import Path
 
 import requests
 from bs4 import BeautifulSoup
@@ -46,6 +47,64 @@ CAMPOS_PADRAO = [
     "Instituição",
     "Biblioteca",
 ]
+
+# Configuracao persistente do app (~/.pesquisa_capes_config.json)
+CONFIG_FILE = Path.home() / ".pesquisa_capes_config.json"
+ZOOM_OPCOES = ["70%", "80%", "90%", "100%", "110%", "125%", "150%"]
+ZOOM_PADRAO = "90%"
+
+# customtkinter aplica auto-scaling de DPI do sistema. Para que "100%" no nosso
+# dropdown represente o tamanho natural (independente de DPI), precisamos
+# dividir pelo fator de DPI atual antes de chamar set_widget_scaling.
+_DPI_FACTOR = None
+
+
+def _detectar_dpi():
+    """Detecta o fator de DPI auto-aplicado pelo customtkinter (cacheia)."""
+    global _DPI_FACTOR
+    if _DPI_FACTOR is not None:
+        return _DPI_FACTOR
+    try:
+        ctk.set_widget_scaling(1.0)
+        tmp = ctk.CTk()
+        tmp.withdraw()
+        tmp.update_idletasks()
+        _DPI_FACTOR = ctk.ScalingTracker.get_widget_scaling(tmp)
+        tmp.destroy()
+    except Exception:
+        _DPI_FACTOR = 1.0
+    if not _DPI_FACTOR or _DPI_FACTOR <= 0:
+        _DPI_FACTOR = 1.0
+    return _DPI_FACTOR
+
+
+def aplicar_zoom(zoom_str):
+    """Aplica um zoom relativo independente do DPI. zoom_str ex: '90%'."""
+    try:
+        desired = int(zoom_str.strip("%")) / 100
+    except Exception:
+        return
+    dpi = _detectar_dpi()
+    try:
+        ctk.set_widget_scaling(desired / dpi)
+    except Exception:
+        pass
+
+
+def carregar_config():
+    if CONFIG_FILE.exists():
+        try:
+            return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {}
+
+
+def salvar_config(cfg):
+    try:
+        CONFIG_FILE.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+    except Exception:
+        pass
 
 FILTROS_PADRAO = [
     {"campo": "Grande Àrea Conhecimento", "valor": "CIÊNCIAS HUMANAS"},
@@ -416,10 +475,18 @@ ctk.set_default_color_theme("blue")
 
 class App(ctk.CTk):
     def __init__(self):
+        # Carrega config salvo e aplica zoom antes de criar widgets
+        self._config = carregar_config()
+        zoom_str = self._config.get("zoom", ZOOM_PADRAO)
+        if zoom_str not in ZOOM_OPCOES:
+            zoom_str = ZOOM_PADRAO
+        aplicar_zoom(zoom_str)
+
         super().__init__()
         self.title("Pesquisa Descritores - Catalogo CAPES")
         self.geometry("1280x860")
-        self.minsize(1100, 760)
+        self.minsize(900, 700)
+        self._zoom_atual = zoom_str
 
         self.queue = queue.Queue()
         self.stop_event = threading.Event()
@@ -457,6 +524,24 @@ class App(ctk.CTk):
         except Exception:
             pass
 
+    def _on_zoom_changed(self, value):
+        if value not in ZOOM_OPCOES:
+            return
+        self._zoom_atual = value
+        self._config["zoom"] = value
+        salvar_config(self._config)
+        # Esconde a janela durante o reescalonamento para evitar artefatos visuais
+        self.withdraw()
+        aplicar_zoom(value)
+        self.update_idletasks()
+        self.after(120, self._restaurar_apos_zoom)
+
+    def _restaurar_apos_zoom(self):
+        self.deiconify()
+        self.state("zoomed")
+        self.after(60, self._update_all_wraplengths)
+        self.after(250, self._update_all_wraplengths)
+
     # ------------------------------------------------------------
     # CONSTRUCAO DA UI
     # ------------------------------------------------------------
@@ -485,13 +570,34 @@ class App(ctk.CTk):
         )
         sub.grid(row=1, column=0, sticky="w", padx=20, pady=(0, 12))
 
+        # Controles do header (zoom + link CAPES)
+        controles = ctk.CTkFrame(header, fg_color="transparent")
+        controles.grid(row=0, column=1, rowspan=2, padx=20, pady=12, sticky="e")
+
+        zoom_lbl = ctk.CTkLabel(
+            controles, text="Zoom:", font=ctk.CTkFont(size=11),
+            text_color=COR_TEXTO_FRACO,
+        )
+        zoom_lbl.pack(side="left", padx=(0, 6))
+
+        self.zoom_var = tk.StringVar(value=self._zoom_atual)
+        zoom_combo = ctk.CTkComboBox(
+            controles, values=ZOOM_OPCOES, variable=self.zoom_var,
+            width=80, height=28,
+            command=self._on_zoom_changed,
+            button_color=COR_PRIMARIA, button_hover_color=COR_PRIMARIA_HOVER,
+            dropdown_fg_color=COR_FUNDO_CARD_2,
+            state="readonly",
+        )
+        zoom_combo.pack(side="left", padx=(0, 12))
+
         link_btn = ctk.CTkButton(
-            header, text="Abrir site CAPES", width=140,
+            controles, text="Abrir site CAPES", width=140,
             fg_color="transparent", border_width=1, border_color=COR_PRIMARIA,
             hover_color=COR_NEUTRO,
             command=lambda: webbrowser.open("https://catalogodeteses.capes.gov.br"),
         )
-        link_btn.grid(row=0, column=1, rowspan=2, padx=20, pady=12, sticky="e")
+        link_btn.pack(side="left")
 
         # ------- COLUNA ESQUERDA: CONFIGURACAO -------
         left = ctk.CTkScrollableFrame(self, fg_color="transparent", label_text="")
