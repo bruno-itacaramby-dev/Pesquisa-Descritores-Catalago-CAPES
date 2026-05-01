@@ -240,7 +240,9 @@ class CapesWorker(threading.Thread):
         filtros = self.params["filtros"]
         keywords = self.params["keywords"]
         pasta_base = self.params["pasta_base"]
-        com_resumo = self.params["com_resumo"]
+        separar_arquivos = self.params.get("separar_arquivos", False)
+        # separar_arquivos implica extrair resumo para gerar as duas versões
+        com_resumo = True if separar_arquivos else self.params["com_resumo"]
         termos = self._split_termos(self.params["termo"])
 
         # Nome da pasta: primeiro termo (+ indicação se houver mais)
@@ -341,14 +343,36 @@ class CapesWorker(threading.Thread):
 
         nome_arq = nome_pasta_seguro or "resultados"
 
-        json_file = os.path.join(pasta, f"{nome_arq}.json")
-        with open(json_file, "w", encoding="utf-8") as f:
-            json.dump(resultados, f, ensure_ascii=False, indent=2)
-        self.emit(tipo="log", level="success", text=f"JSON salvo: {json_file}")
+        if separar_arquivos:
+            # 4 arquivos: sem resumo e com resumo, JSON e Excel
+            sem = [{k: v for k, v in item.items() if k != "resumo"} for item in resultados]
 
-        excel_file = os.path.join(pasta, f"{nome_arq}.xlsx")
-        self._gerar_excel(resultados, excel_file, com_resumo)
-        self.emit(tipo="log", level="success", text=f"Excel salvo: {excel_file}")
+            json_sem = os.path.join(pasta, f"{nome_arq}.json")
+            with open(json_sem, "w", encoding="utf-8") as f:
+                json.dump(sem, f, ensure_ascii=False, indent=2)
+            self.emit(tipo="log", level="success", text=f"JSON salvo: {json_sem}")
+
+            json_com = os.path.join(pasta, f"{nome_arq}_com_resumo.json")
+            with open(json_com, "w", encoding="utf-8") as f:
+                json.dump(resultados, f, ensure_ascii=False, indent=2)
+            self.emit(tipo="log", level="success", text=f"JSON salvo: {json_com}")
+
+            xlsx_sem = os.path.join(pasta, f"{nome_arq}.xlsx")
+            self._gerar_excel(sem, xlsx_sem, com_resumo=False)
+            self.emit(tipo="log", level="success", text=f"Excel salvo: {xlsx_sem}")
+
+            xlsx_com = os.path.join(pasta, f"{nome_arq}_com_resumo.xlsx")
+            self._gerar_excel(resultados, xlsx_com, com_resumo=True)
+            self.emit(tipo="log", level="success", text=f"Excel salvo: {xlsx_com}")
+        else:
+            json_file = os.path.join(pasta, f"{nome_arq}.json")
+            with open(json_file, "w", encoding="utf-8") as f:
+                json.dump(resultados, f, ensure_ascii=False, indent=2)
+            self.emit(tipo="log", level="success", text=f"JSON salvo: {json_file}")
+
+            excel_file = os.path.join(pasta, f"{nome_arq}.xlsx")
+            self._gerar_excel(resultados, excel_file, com_resumo)
+            self.emit(tipo="log", level="success", text=f"Excel salvo: {excel_file}")
 
         self.emit(tipo="log", level="success",
                   text=f"Concluído! {len(resultados)} tese(s) salvas em '{pasta}'")
@@ -841,6 +865,16 @@ class App(ctk.CTk):
         )
         cb.grid(row=0, column=0, sticky="w")
 
+        self.separar_arquivos_var = tk.BooleanVar(value=False)
+        cb2 = ctk.CTkCheckBox(
+            body,
+            text="Gerar arquivos separados (com e sem resumo)\n"
+                 "→ gera 4 arquivos: .json, _com_resumo.json, .xlsx, _com_resumo.xlsx",
+            variable=self.separar_arquivos_var,
+            font=ctk.CTkFont(size=12),
+        )
+        cb2.grid(row=1, column=0, sticky="w", pady=(8, 0))
+
     def _build_botoes(self, parent, row):
         card = ctk.CTkFrame(parent, fg_color=COR_FUNDO_CARD_2, corner_radius=10)
         card.grid(row=row, column=0, sticky="ew", pady=(0, 16))
@@ -1093,6 +1127,7 @@ class App(ctk.CTk):
             "keywords": self._coletar_keywords(),
             "pasta_base": pasta_base,
             "com_resumo": self.com_resumo_var.get(),
+            "separar_arquivos": self.separar_arquivos_var.get(),
         }
         self._start_worker(params, status="Executando coleta...")
 
