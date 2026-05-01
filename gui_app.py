@@ -530,17 +530,25 @@ class App(ctk.CTk):
         self._zoom_atual = value
         self._config["zoom"] = value
         salvar_config(self._config)
-        # Esconde a janela durante o reescalonamento para evitar artefatos visuais
-        self.withdraw()
+        # Overlay solido cobre a janela enquanto o reescalonamento acontece embaixo
+        overlay = ctk.CTkFrame(self, fg_color=COR_FUNDO_CARD_2, corner_radius=0)
+        overlay.place(x=0, y=0, relwidth=1, relheight=1)
+        overlay.lift()
+        # tk.Label ignora set_widget_scaling — tamanho 25 fixo independente do zoom
+        aguarde = tk.Label(
+            self, text="Aguarde...",
+            font=("Helvetica", 25, "bold"),
+            fg=COR_TEXTO_FRACO, bg=COR_FUNDO_CARD_2,
+        )
+        aguarde.place(relx=0.5, rely=0.5, anchor="center")
+        aguarde.lift()
+        self.update_idletasks()
         aplicar_zoom(value)
         self.update_idletasks()
-        self.after(120, self._restaurar_apos_zoom)
-
-    def _restaurar_apos_zoom(self):
-        self.deiconify()
-        self.state("zoomed")
-        self.after(60, self._update_all_wraplengths)
-        self.after(250, self._update_all_wraplengths)
+        self.after(180, overlay.destroy)
+        self.after(180, aguarde.destroy)
+        self.after(200, self._update_all_wraplengths)
+        self.after(380, self._update_all_wraplengths)
 
     # ------------------------------------------------------------
     # CONSTRUCAO DA UI
