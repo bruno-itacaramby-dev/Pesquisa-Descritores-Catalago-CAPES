@@ -205,76 +205,100 @@ class CapesWorker(threading.Thread):
 
     # ------- MODO ANALISAR -------
     def _analyze(self):
-        termo = self.params["termo"]
         filtros = self.params["filtros"]
+        termos = self._split_termos(self.params["termo"])
+
+        self.emit(tipo="log", level="info", text="Conectando ao Catálogo de Teses CAPES...")
         self.emit(tipo="log", level="info",
-                  text=f"Conectando ao Catalogo de Teses CAPES...")
-        self.emit(tipo="log", level="info",
-                  text=f"Termo: '{termo or '(qualquer)'}' | Filtros aplicados: {len(filtros)}")
+                  text=f"Termos: {[t or '(qualquer)' for t in termos]} | Filtros: {len(filtros)}")
         for f in filtros:
-            self.emit(tipo="log", level="info",
-                      text=f"   - {f['campo']} = {f['valor']}")
-        self.emit(tipo="log", level="info", text="Enviando requisicao para a API...")
+            self.emit(tipo="log", level="info", text=f"   - {f['campo']} = {f['valor']}")
+
+        total_geral = 0
+        agregacoes_final = []
         t0 = time.time()
-        data = self.core.buscar(termo, filtros, pagina=1, registros_por_pagina=1)
+        for termo in termos:
+            self._check_stop()
+            data = self.core.buscar(termo, filtros, pagina=1, registros_por_pagina=1)
+            total_geral += data["total"]
+            if not agregacoes_final:
+                agregacoes_final = data.get("agregacoes", [])
+            if len(termos) > 1:
+                self.emit(tipo="log", level="info",
+                          text=f"   '{termo or '(qualquer)'}': {data['total']} resultado(s)")
+
         dt = time.time() - t0
         self.emit(tipo="log", level="success",
-                  text=f"Resposta recebida em {dt:.2f}s. Total de resultados: {data['total']}")
+                  text=f"Resposta em {dt:.2f}s. Total: {total_geral} resultado(s)")
         self.emit(tipo="analyze_result",
-                  total=data["total"],
-                  agregacoes=data.get("agregacoes", []),
-                  por_pagina=data.get("registrosPorPagina", 20))
+                  total=total_geral,
+                  agregacoes=agregacoes_final,
+                  por_pagina=20)
 
     # ------- MODO EXECUTAR -------
     def _execute(self):
-        termo = self.params["termo"]
         filtros = self.params["filtros"]
         keywords = self.params["keywords"]
         pasta_base = self.params["pasta_base"]
         com_resumo = self.params["com_resumo"]
+        termos = self._split_termos(self.params["termo"])
 
-        nome_pasta = termo.strip() if termo and termo.strip() else "resultados"
+        # Nome da pasta: primeiro termo (+ indicação se houver mais)
+        nome_base = termos[0] if termos[0] else "resultados"
+        if len(termos) > 1:
+            nome_base += f" (e mais {len(termos) - 1})"
         nome_pasta_seguro = "".join(
-            c if (c.isalnum() or c in " -_") else "_" for c in nome_pasta
+            c if (c.isalnum() or c in " -_") else "_" for c in nome_base
         ).strip().rstrip(".")
         pasta = os.path.join(pasta_base, nome_pasta_seguro)
         os.makedirs(pasta, exist_ok=True)
 
-        self.emit(tipo="log", level="info", text=f"Pasta de saida: {pasta}")
+        self.emit(tipo="log", level="info", text=f"Pasta de saída: {pasta}")
         self.emit(tipo="log", level="info", text="Etapa 1/3: coletando metadados das teses...")
 
-        self._check_stop()
-        data = self.core.buscar(termo, filtros, pagina=1, registros_por_pagina=20)
-        total = data["total"]
-        por_pagina = data["registrosPorPagina"]
-        total_paginas = math.ceil(total / por_pagina) if total else 0
-
-        self.emit(tipo="log", level="success",
-                  text=f"Total da API: {total} teses, distribuidas em {total_paginas} paginas (20 por pagina)")
-
+        links_vistos = set()
         resultados = []
-        if total > 0:
-            resultados.extend(self._processar_pagina(data, keywords))
+
+        for idx_termo, termo in enumerate(termos):
+            self._check_stop()
+            prefixo = f"['{termo}'] " if len(termos) > 1 else ""
+
+            data = self.core.buscar(termo, filtros, pagina=1, registros_por_pagina=20)
+            total = data["total"]
+            por_pagina = data["registrosPorPagina"]
+            total_paginas = math.ceil(total / por_pagina) if total else 0
+
+            self.emit(tipo="log", level="info",
+                      text=f"{prefixo}{total} teses em {total_paginas} páginas")
+
+            if total == 0:
+                continue
+
+            novos = self._processar_pagina_dedup(data, keywords, links_vistos)
+            resultados.extend(novos)
             self.emit(tipo="progress", phase="links",
-                      current=1, total=total_paginas,
-                      header=f"Coletando paginas - 1/{total_paginas}",
-                      detail=f"{len(resultados)} item(ns) coletado(s) ate agora")
+                      current=idx_termo * 1000 + 1, total=len(termos) * 1000,
+                      header=f"{prefixo}Coletando páginas - 1/{total_paginas}",
+                      detail=f"{len(resultados)} item(ns) coletado(s) até agora")
 
             t0 = time.time()
             for pagina in range(2, total_paginas + 1):
                 self._check_stop()
                 time.sleep(0.3)
                 data = self.core.buscar(termo, filtros, pagina=pagina, registros_por_pagina=20)
-                resultados.extend(self._processar_pagina(data, keywords))
+                novos = self._processar_pagina_dedup(data, keywords, links_vistos)
+                resultados.extend(novos)
                 eta = self._eta(t0, pagina - 1, total_paginas - 1)
+                # progresso relativo ao termo atual dentro do total de termos
+                prog_atual = idx_termo * 1000 + int(pagina / total_paginas * 1000)
                 self.emit(tipo="progress", phase="links",
-                          current=pagina, total=total_paginas,
-                          header=f"Coletando paginas - {pagina}/{total_paginas}{eta}",
-                          detail=f"{len(resultados)} item(ns) coletado(s) ate agora")
+                          current=prog_atual, total=len(termos) * 1000,
+                          header=f"{prefixo}Coletando páginas - {pagina}/{total_paginas}{eta}",
+                          detail=f"{len(resultados)} item(ns) coletado(s) até agora")
 
         self.emit(tipo="log", level="success",
-                  text=f"Etapa 1/3 concluida: {len(resultados)} tese(s) coletada(s)" +
-                       (f" (filtro de titulo aplicado: {', '.join(keywords)})" if keywords else ""))
+                  text=f"Etapa 1/3 concluída: {len(resultados)} tese(s) coletada(s)" +
+                       (f" (filtro de título: {', '.join(keywords)})" if keywords else ""))
 
         # Etapa 2: extrair palavras-chave e resumo
         if com_resumo and resultados:
@@ -303,14 +327,14 @@ class CapesWorker(threading.Thread):
                           detail=item.get("titulo") or "")
                 time.sleep(0.05)
             self.emit(tipo="log", level="success",
-                      text=f"Etapa 2/3 concluida: {sucesso} OK, {falhas} falha(s)")
+                      text=f"Etapa 2/3 concluída: {sucesso} OK, {falhas} falha(s)")
         else:
             for item in resultados:
                 item.setdefault("palavras_chave", "")
                 item.setdefault("resumo", "")
             if not com_resumo:
                 self.emit(tipo="log", level="info",
-                          text="Etapa 2/3 ignorada (extracao de palavras-chave/resumo desativada)")
+                          text="Etapa 2/3 ignorada (extração de palavras-chave/resumo desativada)")
 
         # Etapa 3: salvar arquivos
         self.emit(tipo="log", level="info", text="Etapa 3/3: salvando arquivos...")
@@ -327,13 +351,26 @@ class CapesWorker(threading.Thread):
         self.emit(tipo="log", level="success", text=f"Excel salvo: {excel_file}")
 
         self.emit(tipo="log", level="success",
-                  text=f"Concluido! {len(resultados)} tese(s) salvas em '{pasta}'")
+                  text=f"Concluído! {len(resultados)} tese(s) salvas em '{pasta}'")
         self.emit(tipo="done", pasta=pasta, total=len(resultados))
 
     # ------- HELPERS -------
+    @staticmethod
+    def _split_termos(termo_raw):
+        """Divide 'a, b, c' em ['a', 'b', 'c']. Retorna [''] se vazio."""
+        partes = [t.strip() for t in (termo_raw or "").split(",")]
+        partes = [t for t in partes if t]
+        return partes if partes else [""]
+
     def _processar_pagina(self, data, keywords):
+        return self._processar_pagina_dedup(data, keywords, set())
+
+    def _processar_pagina_dedup(self, data, keywords, links_vistos):
         out = []
         for item in data.get("tesesDissertacoes", []):
+            link = item.get("link")
+            if link and link in links_vistos:
+                continue
             titulo = item.get("titulo", "")
             if keywords:
                 tl = titulo.lower()
@@ -345,6 +382,8 @@ class CapesWorker(threading.Thread):
                     dd = datetime.fromisoformat(dd.replace("Z", "")).strftime("%d/%m/%Y")
                 except Exception:
                     pass
+            if link:
+                links_vistos.add(link)
             out.append({
                 "titulo": titulo,
                 "autor": item.get("autor"),
@@ -354,7 +393,7 @@ class CapesWorker(threading.Thread):
                 "municipioPrograma": item.get("municipioPrograma"),
                 "biblioteca": item.get("biblioteca"),
                 "dataDefesa": dd,
-                "link": item.get("link"),
+                "link": link,
             })
         return out
 
@@ -704,13 +743,14 @@ class App(ctk.CTk):
     def _build_termo(self, parent, row):
         body = self._section(
             parent, row, "1. Termo de busca",
-            "Palavra ou expressao para pesquisar no catalogo da CAPES. "
+            "Palavra ou expressão para pesquisar no catálogo da CAPES. "
+            "Para buscar vários termos de uma vez, separe-os por vírgula — cada um será pesquisado e os resultados combinados. "
             "Deixe em branco para listar todas as teses (combinado com os filtros abaixo).",
         )
         self.termo_var = tk.StringVar(value="gerencialismo")
         self.termo_entry = ctk.CTkEntry(
             body, textvariable=self.termo_var, height=36,
-            placeholder_text="ex: gerencialismo, performatividade docente",
+            placeholder_text="ex: gerencialismo, nova gestão pública, performatividade",
             font=ctk.CTkFont(size=13),
         )
         self.termo_entry.grid(row=0, column=0, sticky="ew")
@@ -718,9 +758,9 @@ class App(ctk.CTk):
     def _build_filtros(self, parent, row):
         body = self._section(
             parent, row, "2. Filtros",
-            "Cada filtro restringe a busca por um campo (Area, Programa, Ano etc). "
-            "Para o mesmo campo, o catalogo trata como OU (qualquer um dos valores). "
-            "Sugestoes aparecem na coluna direita apos clicar ANALISAR.",
+            "Cada filtro restringe a busca por um campo (Área, Programa, Ano etc). "
+            "Para o mesmo campo, o catálogo trata como OU (qualquer um dos valores). "
+            "Sugestões aparecem na coluna direita após clicar ANALISAR.",
         )
         body.grid_columnconfigure(0, weight=1)
 
@@ -758,21 +798,21 @@ class App(ctk.CTk):
 
     def _build_keywords(self, parent, row):
         body = self._section(
-            parent, row, "3. Filtrar por palavras no titulo (opcional)",
-            "Apos a busca, mantem apenas teses cujo titulo contenha pelo menos uma das palavras abaixo. "
-            "Separe por virgula. Deixe em branco para nao filtrar.",
+            parent, row, "3. Filtrar por palavras no título (opcional)",
+            "Após a busca, mantém apenas teses cujo título contenha pelo menos uma das palavras abaixo. "
+            "Separe por vírgula. Deixe em branco para não filtrar.",
         )
         self.keywords_var = tk.StringVar(value="")
         self.keywords_entry = ctk.CTkEntry(
             body, textvariable=self.keywords_var, height=36,
-            placeholder_text="ex: escola, docente, basica",
+            placeholder_text="ex: escola, docente, básica",
         )
         self.keywords_entry.grid(row=0, column=0, sticky="ew")
 
     def _build_output(self, parent, row):
         body = self._section(
-            parent, row, "4. Pasta de saida",
-            "Sera criada uma subpasta com o nome do termo dentro da pasta escolhida.",
+            parent, row, "4. Pasta de saída",
+            "Será criada uma subpasta com o nome do termo dentro da pasta escolhida.",
         )
         body.grid_columnconfigure(0, weight=1)
 
@@ -789,9 +829,9 @@ class App(ctk.CTk):
 
     def _build_opcoes(self, parent, row):
         body = self._section(
-            parent, row, "5. Opcoes",
-            "A extracao de resumo abre a pagina de cada tese individualmente "
-            "e e mais lenta (~1s por tese). Desligue se quiser apenas a lista basica.",
+            parent, row, "5. Opções",
+            "A extração de resumo abre a página de cada tese individualmente "
+            "e é mais lenta (~1s por tese). Desligue se quiser apenas a lista básica.",
         )
         self.com_resumo_var = tk.BooleanVar(value=True)
         cb = ctk.CTkCheckBox(
@@ -839,7 +879,7 @@ class App(ctk.CTk):
         card.grid_columnconfigure(0, weight=1)
 
         title = ctk.CTkLabel(
-            card, text="Resultado da analise",
+            card, text="Resultado da análise",
             font=ctk.CTkFont(size=14, weight="bold"), anchor="w",
         )
         title.grid(row=0, column=0, sticky="ew", padx=14, pady=(12, 0))
@@ -856,7 +896,7 @@ class App(ctk.CTk):
 
         # Sugestoes
         self.agregacoes_label = ctk.CTkLabel(
-            card, text="Sugestoes de filtros (clique em + para adicionar):",
+            card, text="Sugestões de filtros (clique em + para adicionar):",
             font=ctk.CTkFont(size=11, weight="bold"),
             text_color=COR_TEXTO_FRACO, anchor="w", justify="left",
             wraplength=480,
@@ -1142,7 +1182,7 @@ class App(ctk.CTk):
 
         self.total_label.configure(
             text=f"{emoji}  {total:,} teses encontradas\n"
-                 f"   ({paginas} paginas de 20 a serem percorridas)".replace(",", "."),
+                 f"   ({paginas} páginas de 20 a serem percorridas)".replace(",", "."),
             text_color=cor,
             font=ctk.CTkFont(size=14, weight="bold"),
             justify="left",
@@ -1150,7 +1190,7 @@ class App(ctk.CTk):
 
         if total > 0:
             self.btn_executar.configure(state="normal")
-        self._set_status(f"Analise concluida. {total} resultado(s).")
+        self._set_status(f"Análise concluída. {total} resultado(s).")
 
         # Atualizar campos disponiveis com base nas agregacoes retornadas
         nomes_campos = [a["campo"] for a in agregacoes]
