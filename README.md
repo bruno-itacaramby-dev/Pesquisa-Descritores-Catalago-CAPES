@@ -32,7 +32,7 @@ O projeto oferece duas formas de uso:
 
 ### Passo 0: baixar o programa
 
-📥 **[Clique aqui para baixar o programa (PesquisaCAPES.exe)](LINK_DO_GOOGLE_DRIVE_AQUI)**
+📥 **[Clique aqui para baixar o programa (PesquisaCAPES.exe)](https://drive.google.com/file/d/1wzcncoL6oHgZDExJZVfGEaFoHC5JsCjY/view?usp=drive_link)**
 
 > **Não precisa instalar nada.** O arquivo é um executável único (~33 MB) que já contém tudo o que precisa para rodar. Funciona em qualquer **Windows 10 ou 11**.
 
